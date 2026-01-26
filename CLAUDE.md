@@ -29,6 +29,22 @@ On Windows, use:
 .\scripts\install.ps1
 ```
 
+Alternatively, build directly with Go:
+```bash
+go build -mod=vendor -o build/chatgpt.exe ./cmd/chatgpt
+```
+
+### Using the `gpt` Shorthand (Windows)
+A `gpt.bat` shim is available in `C:\Users\david\bin\gpt.bat` that allows you to use the shorter `gpt` command instead of the full `chatgpt` command:
+
+```bash
+gpt "what is 2+2?"
+gpt --interactive
+gpt --help
+```
+
+The shim simply forwards all arguments to the full chatgpt-cli executable.
+
 ### Testing (Critical)
 ```bash
 make unit                 # Run unit tests
