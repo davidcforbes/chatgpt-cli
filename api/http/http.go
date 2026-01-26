@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kardolus/chatgpt-cli/api"
 	"github.com/kardolus/chatgpt-cli/config"
@@ -48,9 +49,12 @@ func New(cfg config.Config) *RestCaller {
 		}
 		client = &http.Client{
 			Transport: transport,
+			Timeout:   60 * time.Second, // Set reasonable timeout for API requests
 		}
 	} else {
-		client = &http.Client{}
+		client = &http.Client{
+			Timeout: 60 * time.Second, // Set reasonable timeout for API requests
+		}
 	}
 
 	return &RestCaller{
