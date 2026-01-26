@@ -11,6 +11,7 @@ import (
 )
 
 const transcriptMaxBytes = 64_000
+const maxOutputStreamBytes = 32_000 // Max bytes per stdout/stderr stream
 
 type Tools struct {
 	Shell tools.Shell
@@ -457,17 +458,28 @@ func buildShellTranscript(cfg types.Config, step types.Step, res types.Result) s
 	_, _ = fmt.Fprintf(&b, "[shell] workdir=%q cmd=%q args=%v\n", cfg.WorkDir, step.Command, step.Args)
 	_, _ = fmt.Fprintf(&b, "exit=%d\n", res.ExitCode)
 
+	// Truncate stdout to prevent unbounded memory allocation
 	if res.Stdout != "" {
 		b.WriteString("stdout:\n")
-		b.WriteString(res.Stdout)
-		if !strings.HasSuffix(res.Stdout, "\n") {
+		stdout := res.Stdout
+		if len(stdout) > maxOutputStreamBytes {
+			stdout = stdout[:maxOutputStreamBytes] + "\n…(stdout truncated)\n"
+		}
+		b.WriteString(stdout)
+		if !strings.HasSuffix(stdout, "\n") {
 			b.WriteString("\n")
 		}
 	}
+
+	// Truncate stderr to prevent unbounded memory allocation
 	if res.Stderr != "" {
 		b.WriteString("stderr:\n")
-		b.WriteString(res.Stderr)
-		if !strings.HasSuffix(res.Stderr, "\n") {
+		stderr := res.Stderr
+		if len(stderr) > maxOutputStreamBytes {
+			stderr = stderr[:maxOutputStreamBytes] + "\n…(stderr truncated)\n"
+		}
+		b.WriteString(stderr)
+		if !strings.HasSuffix(stderr, "\n") {
 			b.WriteString("\n")
 		}
 	}
@@ -478,6 +490,11 @@ func buildLLMStartTranscript(prompt string) string {
 	var b strings.Builder
 	b.WriteString("[llm:start]\n")
 	b.WriteString("prompt:\n")
+
+	// Truncate prompt to prevent unbounded memory allocation
+	if len(prompt) > maxOutputStreamBytes {
+		prompt = prompt[:maxOutputStreamBytes] + "\n…(prompt truncated)\n"
+	}
 	b.WriteString(prompt)
 	if !strings.HasSuffix(prompt, "\n") {
 		b.WriteString("\n")
@@ -489,11 +506,21 @@ func buildLLMTranscript(prompt, output string) string {
 	var b strings.Builder
 	b.WriteString("[llm]\n")
 	b.WriteString("prompt:\n")
+
+	// Truncate prompt to prevent unbounded memory allocation
+	if len(prompt) > maxOutputStreamBytes {
+		prompt = prompt[:maxOutputStreamBytes] + "\n…(prompt truncated)\n"
+	}
 	b.WriteString(prompt)
 	if !strings.HasSuffix(prompt, "\n") {
 		b.WriteString("\n")
 	}
+
 	b.WriteString("output:\n")
+	// Truncate output to prevent unbounded memory allocation
+	if len(output) > maxOutputStreamBytes {
+		output = output[:maxOutputStreamBytes] + "\n…(output truncated)\n"
+	}
 	b.WriteString(output)
 	if output != "" && !strings.HasSuffix(output, "\n") {
 		b.WriteString("\n")

@@ -79,7 +79,8 @@ func (f *FileIO) Write(historyEntries []History) error {
 		return err
 	}
 
-	return os.WriteFile(f.getPath(f.thread), data, 0644)
+	// Use 0600 to protect sensitive conversation history (may contain API keys, passwords, etc.)
+	return os.WriteFile(f.getPath(f.thread), data, 0600)
 }
 
 func (f *FileIO) getPath(thread string) string {

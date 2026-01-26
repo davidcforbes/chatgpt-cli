@@ -301,9 +301,14 @@ func run(cmd *cobra.Command, args []string) error {
 		if cfg.APIKeyFile == "" {
 			return errors.New("API key is required. Provide it via --set-api-key, --set-api-key-file, env var, or config file")
 		} else {
+			// Validate API key file path for security
+			if err := validateAPIKeyFilePath(cfg.APIKeyFile); err != nil {
+				return fmt.Errorf("invalid API key file path: %w", err)
+			}
+
 			content, err := os.ReadFile(cfg.APIKeyFile)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read API key file: %w", err)
 			}
 			cfg.APIKey = strings.TrimSpace(string(content))
 		}
@@ -1030,12 +1035,100 @@ func keyExistsInNode(mapNode *yaml.Node, key string) bool {
 	return false
 }
 
+func validateAPIKeyFilePath(filePath string) error {
+	// Check for size limit before reading (max 10KB for an API key file)
+	const maxAPIKeyFileSize = 10 * 1024 // 10KB
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		// Return generic error to avoid information leakage
+		return fmt.Errorf("cannot access file")
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf("path is a directory, not a file")
+	}
+
+	if info.Size() > maxAPIKeyFileSize {
+		return fmt.Errorf("file too large (max %d bytes)", maxAPIKeyFileSize)
+	}
+
+	// Validate path is within safe directories
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("cannot resolve path")
+	}
+
+	// Get user's home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot determine home directory")
+	}
+
+	// Get config home
+	configHome, err := internal.GetConfigHome()
+	if err != nil {
+		configHome = "" // Will be skipped in validation
+	}
+
+	// Path must be within home directory or config directory
+	absPath = filepath.Clean(absPath)
+	homeDir = filepath.Clean(homeDir)
+
+	isInHome := strings.HasPrefix(absPath, homeDir+string(filepath.Separator))
+	isInConfig := configHome != "" && strings.HasPrefix(absPath, configHome+string(filepath.Separator))
+
+	if !isInHome && !isInConfig {
+		return fmt.Errorf("file must be within home directory or config directory")
+	}
+
+	return nil
+}
+
 func saveConfigWithComments(configPath string, node *yaml.Node) error {
 	out, err := yaml.Marshal(node)
 	if err != nil {
 		return fmt.Errorf("failed to marshal YAML: %w", err)
 	}
-	return os.WriteFile(configPath, out, 0644)
+
+	// Use atomic write pattern to prevent race conditions and corruption
+	// Write to temporary file first, then atomically rename
+	dir := filepath.Dir(configPath)
+	tmpFile, err := os.CreateTemp(dir, ".config-*.yaml.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	// Ensure temp file is cleaned up if we fail
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpPath) // Ignore error - file may have been renamed
+	}()
+
+	// Write content to temp file with secure permissions
+	if err := tmpFile.Chmod(0600); err != nil {
+		return fmt.Errorf("failed to set temp file permissions: %w", err)
+	}
+
+	if _, err := tmpFile.Write(out); err != nil {
+		return fmt.Errorf("failed to write to temp file: %w", err)
+	}
+
+	if err := tmpFile.Sync(); err != nil {
+		return fmt.Errorf("failed to sync temp file: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
+
+	// Atomically rename temp file to target (on POSIX systems, this is atomic)
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		return fmt.Errorf("failed to rename temp file: %w", err)
+	}
+
+	return nil
 }
 
 func saveConfig(changedValues map[string]interface{}) error {

@@ -72,7 +72,8 @@ func CreateHistoryFile(history []string) (string, error) {
 	fullPath := filepath.Join(dataHome, InteractiveHistoryFile)
 
 	content := strings.Join(history, "\n") + "\n"
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+	// Use 0600 to protect sensitive interactive history
+	if err := os.WriteFile(fullPath, []byte(content), 0600); err != nil {
 		return "", err
 	}
 

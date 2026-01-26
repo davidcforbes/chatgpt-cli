@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -373,7 +375,12 @@ func (t *MCPStdioTransport) ensureStarted() error {
 		return fmt.Errorf("stdio endpoint missing command: %s", t.endpoint)
 	}
 
-	cmd := exec.Command(argv[0], argv[1:]...) // #nosec G204
+	// Validate command to prevent shell injection
+	if err := validateStdioCommand(argv); err != nil {
+		return fmt.Errorf("invalid stdio command: %w", err)
+	}
+
+	cmd := exec.Command(argv[0], argv[1:]...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -548,6 +555,54 @@ func (t *MCPStdioTransport) drainStderr() {
 		}
 		// optionally log when debug
 	}
+}
+
+// validateStdioCommand checks for shell injection patterns and validates the command path
+func validateStdioCommand(argv []string) error {
+	if len(argv) == 0 {
+		return fmt.Errorf("empty command")
+	}
+
+	// Check for shell metacharacters in all arguments
+	dangerousChars := []string{";", "|", "&", "$", "`", "\n", "\r", "&&", "||", "$(", "${"}
+	for i, arg := range argv {
+		for _, ch := range dangerousChars {
+			if strings.Contains(arg, ch) {
+				return fmt.Errorf("argument %d contains forbidden character/pattern %q: %s", i, ch, arg)
+			}
+		}
+	}
+
+	// Validate the command path
+	cmdPath := argv[0]
+
+	// Reject relative paths with .. or paths starting with ~
+	if strings.Contains(cmdPath, "..") || strings.HasPrefix(cmdPath, "~") {
+		return fmt.Errorf("command path cannot contain '..' or start with '~': %s", cmdPath)
+	}
+
+	// If it's a relative path, look it up in PATH
+	if !filepath.IsAbs(cmdPath) {
+		absPath, err := exec.LookPath(cmdPath)
+		if err != nil {
+			return fmt.Errorf("command not found in PATH: %s", cmdPath)
+		}
+		// Verify the resolved path doesn't contain suspicious patterns
+		if strings.Contains(absPath, "..") {
+			return fmt.Errorf("resolved command path contains '..': %s", absPath)
+		}
+	} else {
+		// For absolute paths, verify the file exists and is executable
+		info, err := os.Stat(cmdPath)
+		if err != nil {
+			return fmt.Errorf("command path error: %w", err)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("command path is a directory: %s", cmdPath)
+		}
+	}
+
+	return nil
 }
 
 // Minimal shell-ish arg splitting supporting:

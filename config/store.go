@@ -177,7 +177,8 @@ func (f *FileIO) Write(config Config) error {
 		return err
 	}
 
-	return os.WriteFile(f.configFilePath, modifiedContent, 0644)
+	// Use 0600 to protect sensitive config data (may contain API keys)
+	return os.WriteFile(f.configFilePath, modifiedContent, 0600)
 }
 
 func (f *FileIO) readNode() (yaml.Node, error) {
