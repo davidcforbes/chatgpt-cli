@@ -255,6 +255,41 @@ make integration
 make all-tests  # Includes lint, format check, TODO check
 ```
 
+## Platform Notes (Windows)
+
+The test suite and the CLI both have Windows-specific behaviour that does not
+reproduce on Linux or macOS. All three of the following were real defects fixed
+on 2026-09-19; the notes remain because the underlying platform differences do
+not go away.
+
+- **`os.UserHomeDir()` reads `USERPROFILE` on Windows, not `HOME`.** A test that
+  sandboxes only `HOME` does not sandbox the spawned binary, which will write to
+  the developer's real `~/.chatgpt-cli`. The integration suite now sets and
+  restores both.
+- **A second listener can bind a port another process already holds.** Neither
+  side sets `SO_EXCLUSIVEADDRUSE`, so both then race for incoming connections and
+  requests fail intermittently with "An existing connection was forcibly closed
+  by the remote host". Never hardcode a port in tests: `net.Listen("tcp",
+  "127.0.0.1:0")` and derive the URL from `listener.Addr()`.
+- **`os.Rename` onto a path with an open handle fails with "Access is denied".**
+  It succeeds silently on POSIX. Any atomic write (write temp, then rename) must
+  close the destination *before* the rename, not in a `defer` that runs later.
+- Windows cannot reliably use `0.0.0.0` as a *destination* address; bind on it
+  if you like, but connect via loopback.
+- `gofmt`/`golangci-lint` flag every file if the working tree is checked out
+  CRLF. Compare formatting on LF-normalized content before believing a diff.
+
+## Model Defaults
+
+The default model is **`gpt-5.5`** (`config/store.go`, `cmd/chatgpt/main.go`).
+Anything matching `gpt-5` routes through the **Responses API** (`/v1/responses`),
+not `/v1/chat/completions` - see `GetCapabilities` in `api/client/llm.go:360`. The
+integration mock server therefore registers handlers for both endpoints.
+
+⚠️ **The `/v1/models` listing is stale and lists retired models.** `--list-models`
+showed `gpt-5.2-codex` long after it began returning HTTP 404 on use. Never treat
+the listing as proof of access; confirm a model with an actual query.
+
 ## Code Conventions
 
 ### Error Handling
@@ -278,7 +313,11 @@ make all-tests  # Includes lint, format check, TODO check
 - Keep functions small and focused
 - Prefer clarity over cleverness
 - Run `go fmt` before committing
-- Run `golangci-lint run` to catch issues
+- Run `golangci-lint run` to catch issues. **Its headline count is truncated:**
+  `max-same-issues` defaults to 3, so repeated findings of the same shape are
+  hidden. Before claiming the gate is clean, run
+  `golangci-lint run --max-same-issues=0 --max-issues-per-linter=0`.
+  (A pass reporting "20 issues" hid 8 more of the same shape.)
 
 ## Important Guardrails
 
