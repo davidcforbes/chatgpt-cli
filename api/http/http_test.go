@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardolus/chatgpt-cli/api/http"
 	chatgpthttp "github.com/kardolus/chatgpt-cli/api/http"
 	"github.com/kardolus/chatgpt-cli/config"
 	. "github.com/onsi/gomega"
@@ -21,13 +20,13 @@ func TestUnitHTTP(t *testing.T) {
 }
 
 func testHTTP(t *testing.T, when spec.G, it spec.S) {
-	var subject http.RestCaller
+	var subject chatgpthttp.RestCaller
 
-	const responsesPath = "/v1/responses" // use http.ResponsesPath if you export it
+	const responsesPath = "/v1/responses" // use chatgpthttp.ResponsesPath if you export it
 
 	it.Before(func() {
 		RegisterTestingT(t)
-		subject = http.RestCaller{}
+		subject = chatgpthttp.RestCaller{}
 	})
 
 	when("ProcessResponse()", func() {
@@ -155,7 +154,7 @@ func testHTTP(t *testing.T, when spec.G, it spec.S) {
 			}))
 			defer server.Close()
 
-			rc := http.RestCaller{} // ✅ no NewRestCaller
+			rc := chatgpthttp.RestCaller{} // ✅ no NewRestCaller
 
 			resp, err := rc.PostWithHeadersResponse(server.URL, []byte(`{"hello":"world"}`), map[string]string{
 				"X-Test": "abc",
@@ -182,7 +181,7 @@ func testHTTP(t *testing.T, when spec.G, it spec.S) {
 			}))
 			defer server.Close()
 
-			rc := http.RestCaller{}
+			rc := chatgpthttp.RestCaller{}
 
 			resp, err := rc.PostWithHeadersResponse(server.URL, []byte(`{}`), nil)
 

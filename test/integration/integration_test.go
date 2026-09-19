@@ -857,12 +857,12 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 				// Create a pipe to simulate binary input
 				r, w := io.Pipe()
-				defer r.Close()
+				defer func() { _ = r.Close() }()
 
 				// Run the command with piped binary input
 				binaryData := []byte{0x00, 0xFF, 0x42, 0x10}
 				go func() {
-					defer w.Close()
+					defer func() { _ = w.Close() }()
 					_, err := w.Write(binaryData)
 					Expect(err).NotTo(HaveOccurred())
 				}()

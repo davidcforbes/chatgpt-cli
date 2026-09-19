@@ -75,7 +75,7 @@ func testMedia(t *testing.T, when spec.G, it spec.S) {
 			it("throws an error when bytes cannot be written to the output file", func() {
 				file, err := os.Open(os.DevNull)
 				Expect(err).NotTo(HaveOccurred())
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				mockCaller.EXPECT().Post(subject.Config.URL+subject.Config.SpeechPath, body, false).
 					Return(response, nil)
@@ -90,7 +90,7 @@ func testMedia(t *testing.T, when spec.G, it spec.S) {
 			it("succeeds when no errors occurred", func() {
 				file, err := os.Open(os.DevNull)
 				Expect(err).NotTo(HaveOccurred())
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				mockCaller.EXPECT().Post(subject.Config.URL+subject.Config.SpeechPath, body, false).
 					Return(response, nil)
@@ -173,7 +173,7 @@ func testMedia(t *testing.T, when spec.G, it spec.S) {
 				valid := base64.StdEncoding.EncodeToString([]byte("image-bytes"))
 				file, err := os.Open(os.DevNull)
 				Expect(err).NotTo(HaveOccurred())
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				mockCaller.EXPECT().
 					Post(subject.Config.URL+subject.Config.ImageGenerationsPath, body, false).
@@ -191,7 +191,7 @@ func testMedia(t *testing.T, when spec.G, it spec.S) {
 				valid := base64.StdEncoding.EncodeToString([]byte("image-bytes"))
 				file, err := os.Open(os.DevNull)
 				Expect(err).NotTo(HaveOccurred())
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				mockCaller.EXPECT().
 					Post(subject.Config.URL+subject.Config.ImageGenerationsPath, body, false).
@@ -349,7 +349,7 @@ func testMedia(t *testing.T, when spec.G, it spec.S) {
 
 				file, err := os.Open(os.DevNull)
 				Expect(err).NotTo(HaveOccurred())
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				mockReader.EXPECT().Open(audioPath).Return(file, nil)
 
@@ -372,7 +372,7 @@ func testMedia(t *testing.T, when spec.G, it spec.S) {
 
 				file, err := os.Open(os.DevNull)
 				Expect(err).NotTo(HaveOccurred())
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				mockReader.EXPECT().Open(audioPath).Return(file, nil)
 

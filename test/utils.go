@@ -1,7 +1,7 @@
 package test
 
 import (
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,7 +26,7 @@ func FileToBytes(fileName string) ([]byte, error) {
 		return nil, err
 	}
 
-	Expect(urlPath).To(BeAnExistingFile())
+	gomega.Expect(urlPath).To(gomega.BeAnExistingFile())
 
 	return os.ReadFile(urlPath)
 }

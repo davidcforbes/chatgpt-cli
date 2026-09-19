@@ -544,7 +544,7 @@ func run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		defer rl.Close()
+		defer func() { _ = rl.Close() }()
 
 		commandPrompt := func(counter, usage int) string {
 			return utils.FormatPrompt(c.Config.CommandPrompt, counter, usage, time.Now())
@@ -1102,8 +1102,8 @@ func saveConfigWithComments(configPath string, node *yaml.Node) error {
 
 	// Ensure temp file is cleaned up if we fail
 	defer func() {
-		tmpFile.Close()
-		os.Remove(tmpPath) // Ignore error - file may have been renamed
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath) // Ignore error - file may have been renamed
 	}()
 
 	// Write content to temp file with secure permissions

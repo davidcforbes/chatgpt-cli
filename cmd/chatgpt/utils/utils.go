@@ -199,7 +199,7 @@ func ValidateFlags(model string, flags map[string]bool) error {
 	if flags["voice"] && !strings.Contains(model, TTSPattern) {
 		return errors.New("the --voice flag cannot be used without a compatible model, ie gpt-4o-mini-tts (see --list-models)")
 	}
-	if flags["effort"] && !(strings.Contains(model, O1ProPattern) || strings.Contains(model, GPT5Pattern)) {
+	if flags["effort"] && !strings.Contains(model, O1ProPattern) && !strings.Contains(model, GPT5Pattern) {
 		return errors.New("the --effort flag cannot be used with non o1-pro or gpt-5 models (see --list-models)")
 	}
 

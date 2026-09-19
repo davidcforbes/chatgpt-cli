@@ -176,7 +176,7 @@ func testMCP(t *testing.T, when spec.G, it spec.S) {
 
 			mockHistoryStore.EXPECT().Write(gomock.Any()).
 				DoAndReturn(func(h []history.History) error {
-					last := h[len(h)-1].Message.Content
+					last := h[len(h)-1].Content
 					Expect(last).To(ContainSubstring("[MCP: " + tool + "]"))
 					Expect(last).To(ContainSubstring("first\n\nsecond"))
 					return nil

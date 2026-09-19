@@ -58,7 +58,7 @@ func (c *Client) EditImage(inputText, inputPath, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open input image: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -128,7 +128,7 @@ func (c *Client) EditImage(inputText, inputPath, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	if err := c.writer.Write(outFile, imgBytes); err != nil {
 		return fmt.Errorf("failed to write image: %w", err)
@@ -227,7 +227,7 @@ func (c *Client) Transcribe(audioPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open audio file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -415,7 +415,7 @@ func (c *Client) detectAudioFormat(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	buf, err := c.reader.ReadBufferFromFile(file)
 	if err != nil {
@@ -458,7 +458,7 @@ func (c *Client) getMimeTypeFromFileContent(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	buffer, err := c.reader.ReadBufferFromFile(file)
 	if err != nil {
@@ -494,7 +494,7 @@ func (c *Client) postAndWriteBinaryOutput(endpoint string, requestBody interface
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	if err := c.writer.Write(outFile, respBytes); err != nil {
 		return fmt.Errorf("failed to write %s: %w", debugLabel, err)

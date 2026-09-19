@@ -92,7 +92,7 @@ func (r *RestCaller) PostWithHeaders(url string, body []byte, headers map[string
 	if err != nil {
 		return nil, fmt.Errorf(errFailedToMakeRequest, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		errorResponse, err := io.ReadAll(resp.Body)
@@ -130,7 +130,7 @@ func (r *RestCaller) PostWithHeadersResponse(url string, body []byte, headers ma
 	if err != nil {
 		return api.HTTPResponse{}, fmt.Errorf(errFailedToMakeRequest, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
@@ -322,7 +322,7 @@ func (r *RestCaller) doRequest(method, url string, body []byte, stream bool) ([]
 	if err != nil {
 		return nil, fmt.Errorf(errFailedToMakeRequest, err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		errorResponse, err := io.ReadAll(response.Body)

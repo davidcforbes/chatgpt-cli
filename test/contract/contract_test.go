@@ -188,7 +188,7 @@ func testContract(t *testing.T, when spec.G, it spec.S) {
 
 			tmpFile, err := os.CreateTemp("", "speech-*.mp3")
 			Expect(err).NotTo(HaveOccurred())
-			defer os.Remove(tmpFile.Name())
+			defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 			_, err = tmpFile.Write(resp)
 			Expect(err).NotTo(HaveOccurred())
@@ -206,7 +206,7 @@ func testContract(t *testing.T, when spec.G, it spec.S) {
 			audioPath := "../data/hello.wav"
 			file, err := os.Open(audioPath)
 			Expect(err).NotTo(HaveOccurred())
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			var buf bytes.Buffer
 			writer := multipart.NewWriter(&buf)
