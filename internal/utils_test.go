@@ -6,6 +6,7 @@ import (
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -45,7 +46,7 @@ func testUtils(t *testing.T, when spec.G, it spec.S) {
 			dataHome, err := internal.GetDataHome()
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dataHome).To(ContainSubstring(".chatgpt-cli/history")) // Assuming default location is ~/.local/share/chatgpt-cli
+			Expect(dataHome).To(ContainSubstring(filepath.Join(".chatgpt-cli", "history"))) // Assuming default location is ~/.local/share/chatgpt-cli
 		})
 
 		it("Overwrites the default when OPENAI_DATA_HOME is set", func() {
@@ -64,7 +65,7 @@ func testUtils(t *testing.T, when spec.G, it spec.S) {
 			cacheHome, err := internal.GetCacheHome()
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cacheHome).To(ContainSubstring(".chatgpt-cli/cache")) // Assuming default location is ~/.local/share/chatgpt-cli
+			Expect(cacheHome).To(ContainSubstring(filepath.Join(".chatgpt-cli", "cache"))) // Assuming default location is ~/.local/share/chatgpt-cli
 		})
 
 		it("Overwrites the default when OPENAI_CACHE_HOME is set", func() {

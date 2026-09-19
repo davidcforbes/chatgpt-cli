@@ -29,14 +29,18 @@ import (
 )
 
 const (
-	gitCommit   = "some-git-commit"
-	gitVersion  = "some-git-version"
-	servicePort = ":8080"
-	serviceURL  = "http://0.0.0.0" + servicePort
+	gitCommit  = "some-git-commit"
+	gitVersion = "some-git-version"
 )
 
 var (
 	once sync.Once
+	// serviceURL is assigned once the mock server is listening. The port is
+	// chosen by the OS rather than hardcoded: on Windows a second listener can
+	// successfully bind a port another process already holds (neither sets
+	// SO_EXCLUSIVEADDRUSE), after which the two race for incoming connections
+	// and requests fail intermittently with "forcibly closed by the remote host".
+	serviceURL string
 )
 
 func TestIntegration(t *testing.T) {
@@ -302,11 +306,13 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		)
 
 		var (
-			homeDir      string
-			filePath     string
-			configFile   string
-			err          error
-			apiKeyEnvVar string
+			homeDir             string
+			filePath            string
+			configFile          string
+			err                 error
+			apiKeyEnvVar        string
+			originalHome        string
+			originalUserProfile string
 		)
 
 		runCommand := func(args ...string) string {
@@ -350,13 +356,15 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			once.Do(func() {
 				SetDefaultEventuallyTimeout(10 * time.Second)
 
-				log.Println("Building binary...")
-				Expect(buildBinary()).To(Succeed())
-				log.Println("Binary built successfully!")
-
 				log.Println("Starting mock server...")
-				Expect(runMockServer()).To(Succeed())
-				log.Println("Mock server started!")
+				var serveErr error
+				serviceURL, serveErr = runMockServer()
+				Expect(serveErr).NotTo(HaveOccurred())
+				log.Printf("Mock server started at %s!", serviceURL)
+
+				log.Println("Building binary...")
+				Expect(buildBinary(serviceURL)).To(Succeed())
+				log.Println("Binary built successfully!")
 
 				Eventually(func() (string, error) {
 					return curl(fmt.Sprintf("%s/ping", serviceURL))
@@ -368,12 +376,20 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 			apiKeyEnvVar = config.NewManager(config.NewStore()).WithEnvironment().APIKeyEnvVarName()
 
+			// os.UserHomeDir() -- which the CLI uses to locate ~/.chatgpt-cli --
+			// reads USERPROFILE on Windows and HOME elsewhere. Sandbox BOTH, or the
+			// spawned binary writes straight into the developer's real home dir.
+			originalHome = os.Getenv("HOME")
+			originalUserProfile = os.Getenv("USERPROFILE")
 			Expect(os.Setenv("HOME", homeDir)).To(Succeed())
+			Expect(os.Setenv("USERPROFILE", homeDir)).To(Succeed())
 			Expect(os.Setenv(apiKeyEnvVar, expectedToken)).To(Succeed())
 		})
 
 		it.After(func() {
 			gexec.Kill()
+			Expect(os.Setenv("HOME", originalHome)).To(Succeed())
+			Expect(os.Setenv("USERPROFILE", originalUserProfile)).To(Succeed())
 			Expect(os.RemoveAll(homeDir))
 		})
 
@@ -444,8 +460,10 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 			Eventually(session).Should(gexec.Exit(exitFailure))
 
+			// Assert on the path only: the trailing OS error text differs by platform
+			// ("no such file or directory" vs "The system cannot find the path specified.").
 			output := string(session.Err.Contents())
-			Expect(output).To(ContainSubstring(".chatgpt-cli/history: no such file or directory"))
+			Expect(output).To(ContainSubstring(filepath.Join(".chatgpt-cli", "history")))
 		})
 
 		it("should return an error when --new-thread is used with --set-thread", func() {
@@ -617,7 +635,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		it("should return the expected result for the --list-models flag", func() {
 			output := runCommand("--list-models")
 
-			Expect(output).To(ContainSubstring("* gpt-4o (current)"))
+			Expect(output).To(ContainSubstring("* gpt-5.5 (current)"))
 			Expect(output).To(ContainSubstring("- gpt-3.5-turbo"))
 			Expect(output).To(ContainSubstring("- gpt-3.5-turbo-0301"))
 		})
@@ -643,12 +661,12 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			output := runCommand("--query", "tell me a joke", "--debug")
 
 			Expect(output).To(ContainSubstring("Generated cURL command"))
-			Expect(output).To(ContainSubstring("/v1/chat/completions"))
+			Expect(output).To(ContainSubstring("/v1/responses"))
 			Expect(output).To(ContainSubstring("--header \"Authorization: Bearer ${OPENAI_API_KEY}\""))
 			Expect(output).To(ContainSubstring("--header 'Content-Type: application/json'"))
 			Expect(output).To(ContainSubstring("--header 'User-Agent: chatgpt-cli'"))
-			Expect(output).To(ContainSubstring("\"model\":\"gpt-4o\""))
-			Expect(output).To(ContainSubstring("\"messages\":"))
+			Expect(output).To(ContainSubstring("\"model\":\"gpt-5.5\""))
+			Expect(output).To(ContainSubstring("\"input\":"))
 			Expect(output).To(ContainSubstring("Response"))
 
 			Expect(os.Unsetenv("OPENAI_DEBUG")).To(Succeed())
@@ -985,7 +1003,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				})
 
 				it("has a configurable default model", func() {
-					oldModel := "gpt-4o"
+					oldModel := "gpt-5.5"
 					newModel := "gpt-3.5-turbo-0301"
 
 					// Verify initial model
@@ -1092,7 +1110,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 		when("configuration precedence", func() {
 			var (
-				defaultModel = "gpt-4o"
+				defaultModel = "gpt-5.5"
 				newModel     = "gpt-3.5-turbo-0301"
 				envModel     = "gpt-3.5-env-model"
 				envVar       string

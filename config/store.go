@@ -13,7 +13,7 @@ import (
 
 const (
 	openAIName                 = "openai"
-	openAIModel                = "gpt-4o"
+	openAIModel                = "gpt-5.5"
 	openAIMaxTokens            = 4096
 	openAIContextWindow        = 8192
 	openAIURL                  = "https://api.openai.com"

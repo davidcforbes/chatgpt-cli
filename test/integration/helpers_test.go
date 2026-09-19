@@ -7,6 +7,7 @@ import (
 	"github.com/kardolus/chatgpt-cli/test"
 	"github.com/onsi/gomega/gexec"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -15,13 +16,14 @@ import (
 const expectedToken = "valid-api-key"
 
 var (
-	onceBuild   sync.Once
-	onceServe   sync.Once
-	serverReady = make(chan struct{})
-	binaryPath  string
+	onceBuild     sync.Once
+	onceServe     sync.Once
+	serverReady   = make(chan struct{})
+	binaryPath    string
+	mockServerURL string
 )
 
-func buildBinary() error {
+func buildBinary(serviceURL string) error {
 	var err error
 	onceBuild.Do(func() {
 		binaryPath, err = gexec.Build(
@@ -47,25 +49,42 @@ func curl(url string) (string, error) {
 	return string(data), nil
 }
 
-func runMockServer() error {
-	var (
-		defaults config.Config
-		err      error
-	)
+// runMockServer starts the mock API on an OS-assigned port and returns its base
+// URL. The listener is created synchronously so that a bind failure surfaces as
+// an error rather than being swallowed inside a goroutine.
+//
+// The port is not hardcoded because on Windows a second listener can bind a port
+// another process already holds (neither sets SO_EXCLUSIVEADDRUSE); the two then
+// race for incoming connections and requests fail intermittently with
+// "An existing connection was forcibly closed by the remote host".
+func runMockServer() (string, error) {
+	var err error
 
 	onceServe.Do(func() {
-		go func() {
-			defaults = config.NewStore().ReadDefaults()
+		defaults := config.NewStore().ReadDefaults()
 
-			http.HandleFunc("/ping", getPing)
-			http.HandleFunc(defaults.CompletionsPath, postCompletions)
-			http.HandleFunc(defaults.ModelsPath, getModels)
+		var listener net.Listener
+		listener, err = net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
 			close(serverReady)
-			err = http.ListenAndServe(servicePort, nil)
+			return
+		}
+		mockServerURL = "http://" + listener.Addr().String()
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("/ping", getPing)
+		mux.HandleFunc(defaults.CompletionsPath, postCompletions)
+		mux.HandleFunc(defaults.ResponsesPath, postResponses)
+		mux.HandleFunc(defaults.ModelsPath, getModels)
+
+		go func() {
+			_ = http.Serve(listener, mux)
 		}()
+		close(serverReady)
 	})
+
 	<-serverReady
-	return err
+	return mockServerURL, err
 }
 
 func getPing(w http.ResponseWriter, r *http.Request) {
@@ -111,6 +130,26 @@ func postCompletions(w http.ResponseWriter, r *http.Request) {
 	response, err := test.FileToBytes(completionsFile)
 	if err != nil {
 		fmt.Printf("error reading %s: %s\n", completionsFile, err.Error())
+		return
+	}
+	_, _ = w.Write(response)
+}
+
+func postResponses(w http.ResponseWriter, r *http.Request) {
+	if err := validateRequest(w, r, http.MethodPost); err != nil {
+		fmt.Printf("invalid request: %s\n", err.Error())
+		return
+	}
+
+	if err := checkBearerToken(r, expectedToken); err != nil {
+		http.Error(w, creatAuthError(), http.StatusUnauthorized)
+		return
+	}
+
+	const responsesFile = "responses.json"
+	response, err := test.FileToBytes(responsesFile)
+	if err != nil {
+		fmt.Printf("error reading %s: %s\n", responsesFile, err.Error())
 		return
 	}
 	_, _ = w.Write(response)

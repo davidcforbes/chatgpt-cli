@@ -77,7 +77,7 @@ type ConfigMetadata struct {
 }
 
 var configMetadata = []ConfigMetadata{
-	{"model", "set-model", "gpt-4o", "Set a new default model by specifying the model name"},
+	{"model", "set-model", "gpt-5.5", "Set a new default model by specifying the model name"},
 	{"max_tokens", "set-max-tokens", 4096, "Set a new default max token size"},
 	{"context_window", "set-context-window", 8192, "Set a new default context window size"},
 	{"thread", "set-thread", "default", "Set a new active thread by specifying the thread name"},
@@ -1140,7 +1140,7 @@ func saveConfig(changedValues map[string]interface{}) error {
 
 	// If the config file is not specified, assume it's supposed to be in the default location.
 	if configFile == "" {
-		configFile = fmt.Sprintf("%s/config.yaml", configHome)
+		configFile = filepath.Join(configHome, "config.yaml")
 	}
 
 	// Check if the config directory exists.
@@ -1154,7 +1154,12 @@ func saveConfig(changedValues map[string]interface{}) error {
 		if err != nil {
 			return fmt.Errorf("failed to create config file: %w", err)
 		}
-		defer file.Close()
+		// Close immediately rather than deferring: saveConfigWithComments below
+		// renames a temp file over this path, and on Windows that rename fails
+		// with "Access is denied" while any handle to the target is still open.
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("failed to close config file: %w", err)
+		}
 	}
 
 	// Read the existing config with comments.

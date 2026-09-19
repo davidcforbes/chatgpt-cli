@@ -1,0 +1,33 @@
+{
+  "id": "resp_7S36abKURr6XtNzuWu8YER3G7EAEC",
+  "object": "response",
+  "created_at": 1686919476,
+  "status": "completed",
+  "model": "gpt-5.5",
+  "output": [
+    {
+      "id": "msg_7S36abKURr6XtNzuWu8YER3G7EAEC",
+      "type": "message",
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "text": "As an AI language model, I don't have personal opinions about bars, but here are some popular bars in Red Hook, Brooklyn:\n1. Brooklyn Ice House\n2. Sunny's Bar\n3. Red Hook Winery\n4. Hometown BBQ\n5. The Good Fork\n6. Fort Defiance\n7. Bait & Tackle\n8. Rocky Sullivan's\n9. The Brooklyn Barge\n10. Widow Jane Distillery."
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 16,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 92,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "total_tokens": 108
+  }
+}
