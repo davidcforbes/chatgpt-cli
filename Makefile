@@ -1,7 +1,7 @@
 # Default goal when running `make`
 .DEFAULT_GOAL := help
 
-.PHONY: help all-tests binaries commit contract coverage install integration mcp-http mcp-sse reinstall shipit smoke unit updatedeps
+.PHONY: help hooks all-tests binaries commit contract coverage install integration mcp-http mcp-sse reinstall shipit smoke unit updatedeps
 
 # Help command to list all available targets
 help:  ## Show this help message
@@ -21,6 +21,10 @@ contract: ## Run contract tests
 
 coverage: ## Generate a combined coverage report for unit, integration, and contract tests
 	./scripts/coverage.sh
+
+hooks: ## Point git at the tracked .githooks/ directory (run once per clone)
+	git config core.hooksPath .githooks
+	@echo "core.hooksPath = $$(git config core.hooksPath)"
 
 install: ## Build the binaries for the specified OS (default: darwin)
 	./scripts/install.sh $(TARGET_OS)

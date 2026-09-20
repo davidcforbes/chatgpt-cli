@@ -31,3 +31,7 @@ coverage.out
 venv/
 env/
 
+# beads runtime lock. The .beads/.gitignore rule (*.gate.lock*) only covers
+# files INSIDE .beads/, but bd writes this one at the repo ROOT, so it leaks
+# into git status on every run.
+.beads.gate.lock

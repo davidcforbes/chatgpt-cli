@@ -1,0 +1,19 @@
+# golangci-lint configuration.
+#
+# The ONLY reason this file exists is to stop the gate from hiding work
+# (beads-9yz). golangci-lint defaults to max-same-issues: 3, which TRUNCATES
+# repeated findings of the same shape: a first pass here reported 20 issues,
+# and clearing those revealed 8 more that had been suppressed the whole time.
+# A reported count that understates the real backlog is worse than no count,
+# because it reads as progress.
+#
+# Both limits are set to 0 (unlimited) so every finding is always reported.
+# Linter selection is deliberately left at the tool's default set - this file
+# is about the completeness of the report, not about changing what is linted.
+version: "2"
+
+issues:
+  # 0 = unlimited. Default is 3; that is the truncation this file removes.
+  max-same-issues: 0
+  # 0 = unlimited. Default is 50.
+  max-issues-per-linter: 0
